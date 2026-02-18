@@ -21,7 +21,7 @@ function App() {
   const fetchNotes = async () => {
     try {
       const response = await axios.get('http://localhost:3000/notes');
-      setNotes(response.data.notes.filter(note => note !== null && note !== undefined));
+      setNotes(response.data.notes.filter((note: any) => note !== null && note !== undefined));
     } catch (error) {
       console.error('Error fetching notes:', error);
     }
