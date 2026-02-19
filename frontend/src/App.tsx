@@ -1,165 +1,261 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
-import { Plus, Trash2, Edit3, Save, X, StickyNote } from 'lucide-react';
+import { Plus, Trash2, Edit3, Save, X, StickyNote, Eye, FileText } from 'lucide-react';
 import './App.css';
 
+const API = 'http://localhost:3000';
+
 interface Note {
+  heading?: string;
   description?: string;
   [key: string]: any;
 }
 
 function App() {
   const [notes, setNotes] = useState<Note[]>([]);
-  const [newNote, setNewNote] = useState('');
+  const [heading, setHeading] = useState('');
+  const [description, setDescription] = useState('');
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
-  const [editText, setEditText] = useState('');
+  const [editHeading, setEditHeading] = useState('');
+  const [editDescription, setEditDescription] = useState('');
+  const [showNotes, setShowNotes] = useState(false);
+  const [statusMsg, setStatusMsg] = useState('');
 
-  useEffect(() => {
-    fetchNotes();
-  }, []);
+  const showStatus = (msg: string) => {
+    setStatusMsg(msg);
+    setTimeout(() => setStatusMsg(''), 2500);
+  };
 
+  // GET - Fetch all notes
   const fetchNotes = async () => {
     try {
-      const response = await axios.get('http://localhost:3000/notes');
-      setNotes(response.data.notes.filter((note: any) => note !== null && note !== undefined));
+      const response = await axios.get(`${API}/notes`);
+      setNotes(
+        response.data.notes.filter(
+          (note: any) => note !== null && note !== undefined
+        )
+      );
     } catch (error) {
       console.error('Error fetching notes:', error);
     }
   };
 
+  // POST - Add a new note
   const addNote = async () => {
-    if (!newNote.trim()) return;
-
+    if (!heading.trim() && !description.trim()) return;
     try {
-      await axios.post('http://localhost:3000/notes', { description: newNote });
-      setNewNote('');
-      fetchNotes();
+      await axios.post(`${API}/notes`, {
+        heading: heading.trim(),
+        description: description.trim(),
+      });
+      setHeading('');
+      setDescription('');
+      showStatus('✅ Note added successfully!');
+      if (showNotes) fetchNotes();
     } catch (error) {
       console.error('Error adding note:', error);
+      showStatus('❌ Failed to add note');
     }
   };
 
+  // DELETE - Delete a note
   const deleteNote = async (index: number) => {
     try {
-      await axios.delete(`http://localhost:3000/notes/${index}`);
+      await axios.delete(`${API}/notes/${index}`);
+      showStatus('🗑️ Note deleted successfully!');
       fetchNotes();
     } catch (error) {
       console.error('Error deleting note:', error);
+      showStatus('❌ Failed to delete note');
     }
   };
 
+  // PATCH - Update a note (only description)
   const updateNote = async (index: number) => {
     try {
-      await axios.patch(`http://localhost:3000/notes/${index}`, { description: editText });
+      await axios.patch(`${API}/notes/${index}`, {
+        description: editDescription,
+      });
       setEditingIndex(null);
-      setEditText('');
+      setEditHeading('');
+      setEditDescription('');
+      showStatus('✏️ Note updated successfully!');
       fetchNotes();
     } catch (error) {
       console.error('Error updating note:', error);
+      showStatus('❌ Failed to update note');
     }
   };
 
-  const startEdit = (index: number, currentText: string) => {
+  const startEdit = (index: number, note: Note) => {
     setEditingIndex(index);
-    setEditText(currentText);
+    setEditHeading(note.heading || '');
+    setEditDescription(note.description || '');
   };
 
   const cancelEdit = () => {
     setEditingIndex(null);
-    setEditText('');
+    setEditHeading('');
+    setEditDescription('');
+  };
+
+  const handleViewAll = () => {
+    if (!showNotes) {
+      fetchNotes();
+    }
+    setShowNotes(!showNotes);
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
-      <div className="container mx-auto px-4 py-8 max-w-4xl">
-        <div className="text-center mb-8">
-          <div className="flex items-center justify-center mb-4">
-            <StickyNote className="w-8 h-8 text-indigo-600 mr-2" />
-            <h1 className="text-4xl font-bold text-gray-800">Notes Making App</h1>
+    <div className="app">
+      <div className="container">
+        {/* Header */}
+        <div className="header">
+          <div className="header-icon">
+            <StickyNote />
           </div>
-          <p className="text-gray-600">Create, read, update and delete your notes</p>
+          <h1>Notes</h1>
+          <p>Create, read, update and delete your notes</p>
+
+          {/* Method Badges */}
+          <div className="method-badges">
+            <span className="badge badge-post">POST</span>
+            <span className="badge badge-get">GET</span>
+            <span className="badge badge-patch">PATCH</span>
+            <span className="badge badge-delete">DELETE</span>
+          </div>
         </div>
 
-        <div className="bg-white rounded-xl shadow-lg p-6 mb-6">
-          <div className="flex gap-2 mb-4">
+        {/* Status Message */}
+        {statusMsg && <div className="status-toast">{statusMsg}</div>}
+
+        {/* POST - Add Note Section */}
+        <div className="section-card">
+          <div className="section-header">
+            <span className="badge badge-post">POST</span>
+            <h2>Create a Note</h2>
+          </div>
+          <div className="form-group">
             <input
               type="text"
-              value={newNote}
-              onChange={(e) => setNewNote(e.target.value)}
-              onKeyPress={(e) => e.key === 'Enter' && addNote()}
-              placeholder="Enter a new note..."
-              className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+              value={heading}
+              onChange={(e) => setHeading(e.target.value)}
+              placeholder="Note heading..."
+              className="input-field"
             />
-            <button
-              onClick={addNote}
-              className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors flex items-center gap-2"
-            >
-              <Plus className="w-4 h-4" />
+            <textarea
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              placeholder="Note description..."
+              className="textarea-field"
+              rows={3}
+            />
+            <button className="btn-add" onClick={addNote}>
+              <Plus />
               Add Note
             </button>
           </div>
         </div>
 
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-          {notes.map((note, index) => (
-            <div key={index} className="bg-white rounded-lg shadow-md p-4 hover:shadow-lg transition-shadow">
-              {editingIndex === index ? (
-                <div className="space-y-3">
-                  <textarea
-                    value={editText}
-                    onChange={(e) => setEditText(e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-none"
-                    rows={3}
-                  />
-                  <div className="flex gap-2">
-                    <button
-                      onClick={() => updateNote(index)}
-                      className="flex-1 px-3 py-1 bg-green-600 text-white rounded hover:bg-green-700 transition-colors flex items-center justify-center gap-1"
-                    >
-                      <Save className="w-3 h-3" />
-                      Save
-                    </button>
-                    <button
-                      onClick={cancelEdit}
-                      className="flex-1 px-3 py-1 bg-gray-600 text-white rounded hover:bg-gray-700 transition-colors flex items-center justify-center gap-1"
-                    >
-                      <X className="w-3 h-3" />
-                      Cancel
-                    </button>
-                  </div>
-                </div>
-              ) : (
-                <div className="space-y-3">
-                  <p className="text-gray-800 whitespace-pre-wrap">
-                    {note.description || 'Empty note'}
-                  </p>
-                  <div className="flex gap-2">
-                    <button
-                      onClick={() => startEdit(index, note.description || '')}
-                      className="flex-1 px-3 py-1 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors flex items-center justify-center gap-1"
-                    >
-                      <Edit3 className="w-3 h-3" />
-                      Edit
-                    </button>
-                    <button
-                      onClick={() => deleteNote(index)}
-                      className="flex-1 px-3 py-1 bg-red-600 text-white rounded hover:bg-red-700 transition-colors flex items-center justify-center gap-1"
-                    >
-                      <Trash2 className="w-3 h-3" />
-                      Delete
-                    </button>
-                  </div>
-                </div>
-              )}
-            </div>
-          ))}
+        {/* GET - View All Notes Button */}
+        <div className="section-card">
+          <div className="section-header">
+            <span className="badge badge-get">GET</span>
+            <h2>View All Notes</h2>
+          </div>
+          <button className="btn-view" onClick={handleViewAll}>
+            <Eye />
+            {showNotes ? 'Hide Notes' : 'View All Notes'}
+          </button>
         </div>
 
-        {notes.length === 0 && (
-          <div className="text-center py-12">
-            <StickyNote className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-            <p className="text-gray-500 text-lg">No notes yet. Create your first note above!</p>
-          </div>
+        {/* Notes List */}
+        {showNotes && (
+          <>
+            {notes.length > 0 && (
+              <div className="notes-count">
+                <span>Your Notes</span>
+                <span className="count-badge">{notes.length}</span>
+              </div>
+            )}
+
+            {notes.length > 0 ? (
+              <div className="notes-grid">
+                {notes.map((note, index) => (
+                  <div className="note-card" key={index}>
+                    {editingIndex === index ? (
+                      /* PATCH - Edit Mode */
+                      <>
+                        <div className="edit-label">
+                          <span className="badge badge-patch">PATCH</span>
+                          <span>Editing Note #{index + 1}</span>
+                        </div>
+                        <h3 className="note-heading">{note.heading || 'Untitled'}</h3>
+                        <textarea
+                          className="textarea-field textarea-sm"
+                          value={editDescription}
+                          onChange={(e) => setEditDescription(e.target.value)}
+                          placeholder="Description..."
+                          rows={3}
+                          autoFocus
+                        />
+                        <div className="note-actions">
+                          <button
+                            className="btn-save"
+                            onClick={() => updateNote(index)}
+                          >
+                            <Save />
+                            Save
+                          </button>
+                          <button className="btn-cancel" onClick={cancelEdit}>
+                            <X />
+                            Cancel
+                          </button>
+                        </div>
+                      </>
+                    ) : (
+                      /* View Mode */
+                      <>
+                        <div className="note-index">Note #{index + 1}</div>
+                        <h3 className="note-heading">
+                          {note.heading || 'Untitled'}
+                        </h3>
+                        <p className="note-text">
+                          {note.description || 'No description'}
+                        </p>
+                        <div className="note-actions">
+                          {/* PATCH button */}
+                          <button
+                            className="btn-edit"
+                            onClick={() => startEdit(index, note)}
+                          >
+                            <Edit3 />
+                            Edit
+                          </button>
+                          {/* DELETE button */}
+                          <button
+                            className="btn-delete"
+                            onClick={() => deleteNote(index)}
+                          >
+                            <Trash2 />
+                            Delete
+                          </button>
+                        </div>
+                      </>
+                    )}
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="empty-state">
+                <div className="empty-icon">
+                  <FileText />
+                </div>
+                <h3>No notes yet</h3>
+                <p>Create your first note above!</p>
+              </div>
+            )}
+          </>
         )}
       </div>
     </div>
